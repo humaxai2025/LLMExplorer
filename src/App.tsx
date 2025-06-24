@@ -15,9 +15,8 @@ export interface LLMItem {
   [key: string]: any;
 }
 
-// NEW: Dataset API endpoint (stable)
-const DATA_URL =
-  "https://huggingface.co/datasets/open-llm-leaderboard/contents?format=json";
+// Use local API endpoint!
+const DATA_URL = "/api/llms";
 
 function App() {
   const [llms, setLlms] = useState<LLMItem[]>([]);
@@ -32,7 +31,6 @@ function App() {
       .then((json: any[]) => {
         // Map the JSON data into your LLMItem structure
         const rows = json.map(item => {
-          // Each item.id is like "org/model"
           const [org, model] = item.id.split("/");
           const metrics = item.metadata || {};
           return {
