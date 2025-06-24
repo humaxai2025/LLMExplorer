@@ -2,21 +2,22 @@ import React, { useEffect, useState } from "react";
 import FilterBar from "./components/FilterBar";
 import LLMTable from "./components/LLMTable";
 
+// LLM item type
 export interface LLMItem {
-  model: string;
   organization: string;
-  params: number;
+  model: string;
   hardware: string;
-  avg: number;
-  leaderboard_score: number;
-  tasks: string[]; // not always present
-  license: string;
-  description: string; // not always present
-  [key: string]: any;  // for unknown keys
+  params?: string | number;
+  leaderboard_score?: number;
+  tasks?: string[];
+  license?: string;
+  description?: string;
+  [key: string]: any;
 }
 
+// NEW: Dataset API endpoint (stable)
 const DATA_URL =
-  "https://huggingface.co/api/spaces/HuggingFaceH4/open_llm_leaderboard/leaderboard";
+  "https://huggingface.co/datasets/open-llm-leaderboard/contents?format=json";
 
 function App() {
   const [llms, setLlms] = useState<LLMItem[]>([]);
@@ -28,12 +29,34 @@ function App() {
   useEffect(() => {
     fetch(DATA_URL)
       .then((res) => res.json())
-      .then((json) => {
-        setLlms(json.rows || []);
+      .then((json: any[]) => {
+        // Map the JSON data into your LLMItem structure
+        const rows = json.map(item => {
+          // Each item.id is like "org/model"
+          const [org, model] = item.id.split("/");
+          const metrics = item.metadata || {};
+          return {
+            organization: org || "Unknown",
+            model: model || item.id,
+            hardware: metrics.hardware || "Unknown",
+            params: metrics.params,
+            leaderboard_score: metrics.leaderboard_score ?? metrics.avg ?? null,
+            tasks: metrics.tasks || [],
+            license: metrics.license,
+            description: metrics.description,
+          };
+        });
+        setLlms(rows);
         setLoading(false);
+      })
+      .catch(err => {
+        setLoading(false);
+        alert("Failed to fetch LLM data!");
+        console.error(err);
       });
   }, []);
 
+  // Gather unique hardware types (for filtering)
   const categories = [
     ...new Set(llms.map((llm) => llm.hardware || "Unknown")),
   ].filter(Boolean);
@@ -65,7 +88,7 @@ function App() {
         )}
       </div>
       <footer className="mt-16 text-center text-gray-400 text-sm">
-        Powered by the Hugging Face Open LLM Leaderboard &mdash; Deployed on Vercel
+        Powered by Hugging Face Open LLM Leaderboard &mdash; Deployed on Vercel
       </footer>
     </div>
   );
